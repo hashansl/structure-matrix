@@ -1,0 +1,20 @@
+---
+title: "structure-matrix"
+author: "Hashan Fernando"
+date: "2024-02-21"
+output: html_document
+---
+
+
+```{r}
+library(maptools)
+library(spdep)
+```
+data/wyoming/SVI data/SVI2020_US_county.gdb
+
+
+```{r}
+counties<-readShapeSpatial("/data/wyoming/SVI data/SVI2020_US_county.gdb")
+
+```
+
