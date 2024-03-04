@@ -24,6 +24,25 @@ adj_mat<-nb2mat(poly2nb(counties,queen=T,row.names=counties$COUNTY),style="B")
 adj_mat
 ```
 ```{r}
-getAnywhere(poly2nb)
+library(INLA)   
+df <- read.csv("matrix_data.csv", header = FALSE)
+```
+
+```{r}
+Q = inla.scale.model(df, constr=list(A=matrix(1, nrow=1, ncol=12),e=0))
+```
+
+```{r}
+Q
+```
+
+
+```{r}
+getAnywhere("inla.scale.model")
+```
+
+```{r}
+getAnywhere("inla.scale.model.internal")
+
 ```
 
