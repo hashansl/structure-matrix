@@ -29,12 +29,84 @@ df <- read.csv("matrix_data.csv", header = FALSE)
 ```
 
 ```{r}
+# Assuming your dataframe is named df
+#df[df == -1] <- 1
+```
+
+```{r}
 Q = inla.scale.model(df, constr=list(A=matrix(1, nrow=1, ncol=12),e=0))
 ```
 
 ```{r}
 Q
 ```
+```{r}
+diag_sum <- sum(diag(as.matrix(Q)))
+print(diag_sum)
+print(sqrt(diag_sum))
+```
+
+```{r}
+# Initialize a vector to store the log sums of diagonal elements
+log_diag_sums <- numeric(12)
+
+# Loop through each diagonal element
+for (i in 1:12) {
+  log_diag_sums[i] <- log(Q[i, i])
+}
+
+print(log_diag_sums)
+print(mean(log_diag_sums))
+print(exp(mean(log_diag_sums)))
+
+```
+```{r}
+# Compute SVD of Q_matrix_regularized
+svd_result <- svd(Q)
+
+# Extract U, S, Vt matrices from the result
+U <- svd_result$u
+S <- svd_result$d
+Vt <- svd_result$v
+
+# Set threshold for singular values
+tol <- 1e-12
+
+# Calculate inverse of singular values
+S_inv <- ifelse(S > tol, 1/S, 0)
+
+# Construct the generalized inverse
+Q_inv <- t(Vt) %*% diag(S_inv) %*% t(U)
+```
+
+
+
+```{r}
+# Initialize a vector to store the log sums of diagonal elements
+log_diag_sums <- numeric(12)
+
+# Loop through each diagonal element
+for (i in 1:12) {
+  log_diag_sums[i] <- log(Q_inv[i, i])
+}
+
+print(log_diag_sums)
+print(mean(log_diag_sums))
+print(exp(mean(log_diag_sums)))
+
+```
+
+
+```{r}
+# Specify the file path where you want to save the CSV file
+file_path <- "my_matrix.csv"
+
+# Write the matrix to a CSV file
+write.csv(my_matrix, file = file_path, row.names = FALSE)
+```
+
+
+
 
 
 ```{r}
