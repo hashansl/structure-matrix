@@ -2,7 +2,9 @@
 title: "INLA scale code study"
 author: "Hashan Fernando"
 date: "2024-03-06"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r}
@@ -11,6 +13,11 @@ df <- read.csv("matrix_data.csv", header = FALSE)
 mat <- as.matrix(df)
 mat
 ```
+In constr \
+
+A: It specifies a coefficient matrix with dimensions 1x12 (1 row and 12 columns), filled with ones. This implies that the linear combination of the 12 variables in the model should sum to a constant value. \
+
+e: It specifies a constant value of 0 for the right-hand side of the linear constraints. This means that the linear combination of variables should equal zero.
 
 ```{r}
 P = inla.scale.model(mat, constr=list(A=matrix(1, nrow=1, ncol=12),e=0))
@@ -163,6 +170,10 @@ if (!is.null(constr)) {
     eeps <- 0
 }
 
+```
+
+```{r}
+constr$A[, i, drop = FALSE]
 ```
 
 ```{r}
@@ -349,14 +360,30 @@ my_function <- function (Q, constr = NULL, eps = sqrt(.Machine$double.eps))
 ```{r}
 T = my_function(mat, constr=list(A=matrix(1, nrow=1, ncol=12),e=0))
 ```
+```{r}
+TT = T$Q
+```
 
 ```{r}
 T
 ```
 
 
+```{r}
+help(inla.qinv)
+```
 
+SPD stands for "Symmetric Positive Definite." An SPD sparse matrix is a specific type of sparse matrix that possesses two key properties:
 
+Symmetry: The matrix is symmetric, meaning that it is equal to its transpose. Mathematically, for an × n×n matrix A, this property is represented as A=A⊤ . This symmetry often arises in many applications, particularly in contexts where relationships or interactions are symmetric.
+
+Positive Definiteness: The matrix is positive definite, meaning that it satisfies certain mathematical properties related to its eigenvalues. Specifically, all eigenvalues of the matrix are positive. In other words, for any non-zero vector x, the quadratic form x⊤ Ax is always positive.
+
+```{r}
+getAnywhere(inla.qinv)
+```
+```{r}
+d = inla.scale.model(mat)
 
 
 
