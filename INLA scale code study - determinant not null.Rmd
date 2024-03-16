@@ -1,0 +1,389 @@
+---
+title: "INLA scale code study"
+author: "Hashan Fernando"
+date: "2024-03-06"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+library(INLA)   
+df <- read.csv("matrix_data.csv", header = FALSE)
+mat <- as.matrix(df)
+mat
+```
+In constr \
+
+A: It specifies a coefficient matrix with dimensions 1x12 (1 row and 12 columns), filled with ones. This implies that the linear combination of the 12 variables in the model should sum to a constant value. \
+
+e: It specifies a constant value of 0 for the right-hand side of the linear constraints. This means that the linear combination of variables should equal zero.
+
+```{r}
+P = inla.scale.model(mat, constr=list(A=matrix(1, nrow=1, ncol=12),e=0))
+P
+```
+
+Geometric mean checking
+```{r}
+# Initialize a vector to store the log sums of diagonal elements
+log_diag_sums <- numeric(12)
+
+# Loop through each diagonal element
+for (i in 1:12) {
+  log_diag_sums[i] <- log(P[i, i])
+}
+
+#print(log_diag_sums)
+#print(mean(log_diag_sums))
+print(exp(mean(log_diag_sums)))
+
+```
+inla.scale.model Study
+
+Inputs,\
+Q, \
+constr = NULL, \
+eps = sqrt(.Machine$double.eps) \
+
+```{r}
+print(.Machine$double.eps)
+print(sqrt(.Machine$double.eps))
+```
+
+Need to study inla.scale.model.internal \
+Same Inputs \ 
+
+
+Let's define df as Q, \
+
+```{r}
+Q = mat
+Q
+```
+
+```{r}
+nrow(Q)
+```
+
+define 12 element vector of 0 \ 
+rep() function is used to replicate elements of vectors or array \
+
+```{r}
+marg.var <- rep(0, nrow(Q))
+marg.var
+```
+
+inla.as.sparse(Q) same as dgTMatrix \
+
+dgTMatrix format: The dgTMatrix format is a compressed representation of a sparse matrix, particularly efficient for matrices with a large number of zero elements. It stores only the non-zero elements and their positions, making it memory-efficient and suitable for various mathematical operations \
+
+
+```{r}
+Q_sparse <- inla.as.sparse(Q)
+Q_sparse
+```
+
+
+```{r}
+## building a graph from adjacency matrix
+adjacent = matrix(0, nrow = 4, ncol = 4)
+adjacent[1,4] = adjacent[4,1] = 1
+adjacent[2,4] = adjacent[4,2] = 1
+adjacent[2,3] = adjacent[3,2] = 1
+adjacent[3,4] = adjacent[4,3] = 1
+g_ = inla.read.graph(adjacent)
+plot(g_)
+summary(g_)
+```
+
+
+```{r}
+g <- inla.read.graph(Q_sparse)
+plot(g)
+summary(g)
+```
+```{r}
+help(inla.read.graph)
+```
+
+INLA graph function \
+
+We need g$cc$n \
+and  g$cc$nodes \
+
+
+```{r}
+print(g$cc$n)
+print(g$cc$nodes )
+```
+
+
+
+```{r}
+i <- g$cc$nodes[[1]]
+print(i)
+n <- length(i)
+
+
+# This indicates that we are selecting rows and columns from the matrix specified by the indices i. Since i is used for both rows and columns,
+QQ <- Q_sparse[i, i, drop = FALSE]
+
+
+if (n == 1) {
+  QQ[1, 1] <- 1
+  marg.var[i] <- 1
+}
+
+```
+```{r}
+QQ
+```
+
+Else part(important)
+```{r}
+L =list(A=matrix(1, nrow=1, ncol=12))
+L
+```
+constr	\
+Linear constraints spanning the null-space of Q; see ?INLA::f and argument extraconstr \
+
+When we talk about linear constraints spanning the null-space of the Q matrix, it means that we are imposing linear restrictions on the variables represented by x such that the resulting vector lies in the null-space of Q. In other words, these constraints are defining relationships between the variables such that the resulting combination satisfies the equation Qx=0. \
+
+For example, if Q is a coefficient matrix representing a system of linear equations, the null-space contains all the solutions to the homogeneous system Qx=0. In this context, linear constraints spanning the null-space could refer to additional conditions imposed on the variables to ensure that they satisfy the given system of equations. These constraints would help define the solution space more precisely. \
+
+eps	
+A small constant added to the diagonal of Q if constr \
+
+If there constrain eeps will be Machine$double.eps else it will be zero.
+
+```{r}
+constr = L
+eps = sqrt(.Machine$double.eps)
+
+cconstr <- constr
+
+if (!is.null(constr)) {
+    cconstr$A <- constr$A[, i, drop = FALSE]
+    eeps <- eps
+}else {
+    eeps <- 0
+}
+
+```
+
+```{r}
+constr$A[, i, drop = FALSE]
+```
+
+```{r}
+constr$A
+
+```
+
+
+
+The which() function in R returns the indices of the elements that satisfy a given condition. In this specific case, which(rowSums(abs(cconstr$A)) == 0) will return the indices of the rows in the matrix cconstr$A where the sum of the absolute values of elements across each row equals zero.
+
+```{r}
+idx.zero <- which(rowSums(abs(cconstr$A)) == 0)
+print(idx.zero)
+```
+```{r}
+if (length(idx.zero) > 0) {
+    #This line removes the rows indexed by idx.zero from the matrix cconstr$A. The -idx.zero notation is used to index all rows except those specified in idx.zero. The drop = FALSE argument ensures that the result remains a matrix even if it has only one row.
+    cconstr$A <- cconstr$A[-idx.zero, , drop = FALSE]
+    #  This line removes the elements indexed by idx.zero from the vector cconstr$e
+    cconstr$e <- cconstr$e[-idx.zero]
+}
+```
+
+
+```{r}
+Diagonal(n)
+```
+```{r}
+max(diag(QQ))
+```
+
+
+```{r}
+Diagonal(n)*max(diag(QQ))*eeps
+```
+```{r}
+QQ+Diagonal(n)*max(diag(QQ))*eeps
+```
+
+Have to define this as 0. Look the function e=0
+```{r}
+cconstr$e <-0
+```
+
+```{r}
+res <- inla.qinv(QQ + Diagonal(n)*max(diag(QQ))*eeps,constr = cconstr)
+res
+```
+```{r}
+fac <- exp(mean(log(diag(res))))
+fac
+```
+
+
+```{r}
+QQ_ <- fac * QQ
+QQ_
+```
+
+
+
+
+
+
+
+
+```{r}
+Q_sparse[c(1,2), c(1,2), drop = FALSE]
+```
+
+
+
+```{r}
+marg.var[i] <- diag(res)/fac
+marg.var
+```
+
+```{r}
+Q
+```
+
+```{r}
+QQ_
+```
+Putting it all together, Q[i, i] <- QQ means that the elements of the square submatrix QQ are assigned to the diagonal elements of the matrix Q at positions specified by the indices i. This operation effectively updates the diagonal elements of Q with the values from QQ.
+ 
+ 
+ 
+ 
+```{r}
+# Check the number of rows
+num_rows <- nrow(Q)
+
+# Check the number of columns
+num_cols <- ncol(Q)
+
+# Print the number of rows and columns
+print(num_rows)
+print(num_cols)
+```
+
+```{r}
+# Check the number of rows
+num_rows <- nrow(QQ_)
+
+# Check the number of columns
+num_cols <- ncol(QQ_)
+
+# Print the number of rows and columns
+print(num_rows)
+print(num_cols)
+```
+
+
+
+```{r}
+#Q[i, i] <- QQ_
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+my_function <- function (Q, constr = NULL, eps = sqrt(.Machine$double.eps)) 
+{
+    marg.var <- rep(0, nrow(Q))
+    Q <- inla.as.sparse(Q)
+    g <- inla.read.graph(Q)
+    for (k in seq_len(g$cc$n)) {
+        i <- g$cc$nodes[[k]]
+        n <- length(i)
+        QQ <- Q[i, i, drop = FALSE]
+        if (n == 1) {
+            QQ[1, 1] <- 1
+            marg.var[i] <- 1
+        }
+        else {
+            cconstr <- constr
+            if (!is.null(constr)) {
+                cconstr$A <- constr$A[, i, drop = FALSE]
+                eeps <- eps
+            }
+            else {
+                eeps <- 0
+            }
+            idx.zero <- which(rowSums(abs(cconstr$A)) == 0)
+            if (length(idx.zero) > 0) {
+                cconstr$A <- cconstr$A[-idx.zero, , drop = FALSE]
+                cconstr$e <- cconstr$e[-idx.zero]
+            }
+            res <- inla.qinv(QQ + Diagonal(n) * max(diag(QQ)) * 
+                eeps, constr = cconstr)
+            fac <- exp(mean(log(diag(res))))
+            QQ <- fac * QQ
+            marg.var[i] <- diag(res)/fac
+        }
+        
+        #print(Q)
+        #print(QQ)
+        Q[i, i] <- QQ
+        print(Q)
+    }
+    return(list(Q = Q, var = marg.var))
+}
+```
+
+```{r}
+T = my_function(mat, constr=list(A=matrix(1, nrow=1, ncol=12),e=0))
+```
+```{r}
+TT = T$Q
+```
+
+```{r}
+T
+```
+
+
+```{r}
+help(inla.qinv)
+```
+
+SPD stands for "Symmetric Positive Definite." An SPD sparse matrix is a specific type of sparse matrix that possesses two key properties:
+
+Symmetry: The matrix is symmetric, meaning that it is equal to its transpose. Mathematically, for an × n×n matrix A, this property is represented as A=A⊤ . This symmetry often arises in many applications, particularly in contexts where relationships or interactions are symmetric.
+
+Positive Definiteness: The matrix is positive definite, meaning that it satisfies certain mathematical properties related to its eigenvalues. Specifically, all eigenvalues of the matrix are positive. In other words, for any non-zero vector x, the quadratic form x⊤ Ax is always positive.
+
+```{r}
+getAnywhere(inla.qinv)
+```
+```{r}
+d = inla.scale.model(mat)
+
+
+
