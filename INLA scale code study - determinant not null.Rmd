@@ -56,7 +56,7 @@ my_function <- function (Q, constr = NULL, eps = sqrt(.Machine$double.eps))
         #print(Q)
         #print(QQ)
         Q[i, i] <- QQ
-        print(Q)
+        #print(Q)
     }
     return(list(Q = Q, var = marg.var, fac=fac))
 }
