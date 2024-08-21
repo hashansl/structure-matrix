@@ -43,8 +43,11 @@ eps = sqrt(.Machine$double.eps)
 ```{r}
 for (k in seq_len(g$cc$n)) {
         i <- g$cc$nodes[[k]]
+        print(i)
         n <- length(i)
         QQ <- mat[i, i, drop = FALSE]
+        
+        print(QQ)
         if (n == 1) {
             QQ[1, 1] <- 1
             marg.var[i] <- 1
@@ -68,6 +71,8 @@ for (k in seq_len(g$cc$n)) {
                 eeps, constr = cconstr)
             
             fac <- exp(mean(log(diag(res))))
+            #print(res)
+            
             print(fac)
             QQ <- fac * QQ
             marg.var[i] <- diag(res)/fac
